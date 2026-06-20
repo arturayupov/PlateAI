@@ -1,0 +1,6 @@
+{
+  "name": "Virtual Food Photographer",
+  "description": "Generate high-end, realistic food photography from text-based menus with style toggles, resolution settings, and interactive prompt editing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

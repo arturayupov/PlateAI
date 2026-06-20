@@ -1,0 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --color-brand-50: #EEF1EE;
+  --color-brand-100: #E1EAE4;
+  --color-brand-200: #BACCC0;
+  --color-brand-500: #255437;
+  --color-brand-700: #1E4D2B;
+  --color-brand-900: #0F2113;
+}
+
+body {
+  background-color: #EEF1EE;
+}
+
+@layer utilities {
+  .shimmer-bg {
+    background: linear-gradient(90deg, #E6ECE8 25%, #D5DFD7 50%, #E6ECE8 75%);
+    background-size: 200% 100%;
+    animation: shimmer-animation 1.5s infinite linear;
+  }
+}
+
+@keyframes shimmer-animation {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
