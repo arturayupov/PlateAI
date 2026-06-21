@@ -3,7 +3,7 @@ FROM node:20-slim AS build
 WORKDIR /app
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 COPY package*.json ./
-RUN npm ci --include=dev
+RUN npm install --include=dev --no-audit --no-fund
 COPY . .
 RUN npm run build
 
@@ -24,7 +24,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm install --omit=dev --no-audit --no-fund && npm cache clean --force
 COPY --from=build /app/dist ./dist
 
 EXPOSE 8080
