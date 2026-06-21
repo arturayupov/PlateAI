@@ -11,4 +11,4 @@ Allow: /
 User-agent: Google-Extended
 Allow: /
 
-Sitemap: https://plateai.app/sitemap.xml
+Sitemap: https://plateai-533944513542.us-central1.run.app/sitemap.xml
