@@ -234,13 +234,13 @@ export default function App() {
   const [restaurantTagline, setRestaurantTagline] = useState("Artisanal French Cuisine & Fine Dining");
   const [showPageNumbers, setShowPageNumbers] = useState(true);
   const [brandStyles, setBrandStyles] = useState<BrandStyles>({
-    restaurantName: { fontSize: "28px", fontWeight: "bold", fontFamily: "serif", color: "" },
-    restaurantTagline: { fontSize: "14px", fontWeight: "normal", fontFamily: "sans", color: "" },
-    category: { fontSize: "11px", fontWeight: "bold", fontFamily: "mono", color: "" },
-    dishName: { fontSize: "18px", fontWeight: "bold", fontFamily: "serif", color: "" },
-    dishPrice: { fontSize: "14px", fontWeight: "bold", fontFamily: "mono", color: "" },
-    dishDescription: { fontSize: "11px", fontWeight: "normal", fontFamily: "sans", color: "" },
-    dishIngredients: { fontSize: "9.5px", fontWeight: "normal", fontFamily: "sans", color: "" }
+    restaurantName: { fontSize: "22px", fontWeight: "bold", fontFamily: "serif", color: "" },
+    restaurantTagline: { fontSize: "11px", fontWeight: "normal", fontFamily: "sans", color: "" },
+    category: { fontSize: "10px", fontWeight: "bold", fontFamily: "mono", color: "" },
+    dishName: { fontSize: "13px", fontWeight: "bold", fontFamily: "serif", color: "" },
+    dishPrice: { fontSize: "12px", fontWeight: "bold", fontFamily: "mono", color: "" },
+    dishDescription: { fontSize: "9.5px", fontWeight: "normal", fontFamily: "sans", color: "" },
+    dishIngredients: { fontSize: "8.5px", fontWeight: "normal", fontFamily: "sans", color: "" }
   });
   
   // Staging state for sequential batch regeneration of dishes
@@ -940,7 +940,7 @@ export default function App() {
       {activeView !== "landing" && (
         <header className={`border-b ${theme.headerBorder} ${theme.headerBg} sticky top-0 z-40 transition-all duration-300`}>
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-3.5">
+          <div onClick={() => setActiveView("landing")} title="Back to home" className="flex items-center gap-3.5 cursor-pointer">
             <div className="h-11 w-11 rounded-xl bg-gradient-to-tr from-[#1E4D2B] via-[#255437] to-[#3B664C] flex items-center justify-center text-[#EAF2EB] shadow-md shadow-[#1E4D2B]/10 group relative overflow-hidden transition-all duration-300 hover:scale-105 border border-[#BACCC0]/40">
               <svg viewBox="0 0 24 24" className="h-6 w-6 stroke-[#EAF2EB] fill-none stroke-[2]" xmlns="http://www.w3.org/2000/svg">
                 {/* Platter base */}
@@ -970,17 +970,6 @@ export default function App() {
           
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1 bg-[#E1EAE4]/60 p-1 rounded-xl border border-[#CFDCCE] shadow-inner">
-              <button
-                onClick={() => setActiveView("landing")}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition duration-200 flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
-                  activeView === "landing"
-                    ? "bg-[#255437] text-white shadow-xs"
-                    : "text-[#4F5B51] hover:text-[#1C2C1D]"
-                }`}
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                Promo Landing
-              </button>
               <button
                 onClick={() => setActiveView("studio")}
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg transition duration-200 flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
@@ -1922,19 +1911,13 @@ export default function App() {
                   </div>
                 </div>
                 <p className={`text-xs ${theme.textSecondary} mt-2 max-w-2xl leading-relaxed`}>
-                   Aesthetic layout bento block. Arrange elements, edit menu details real-time, select custom typography, and print or download production-ready PDFs.
+                   Arrange your menu, edit text inline, then download a print-ready PDF or the full pack.
                 </p>
               </div>
               
-              {/* Back button and quick compiles */}
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setActiveView("studio")}
-                  className={`px-4 py-2 text-xs font-semibold ${theme.buttonSecondary} rounded-xl transition cursor-pointer flex items-center gap-1.5`}
-                >
-                  ← Back to Photography Studio
-                </button>
+              {/* Export actions */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="text-[11px] font-semibold text-[#55695A] mr-1 hidden lg:inline">Download&nbsp;→</span>
                 <button
                   type="button"
                   onClick={() => ensureUnlocked(() => {
@@ -1958,7 +1941,7 @@ export default function App() {
                   className={`px-5 py-2 text-xs font-bold ${theme.buttonPrimary} rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md`}
                 >
                   <Printer className="h-3.5 w-3.5" />
-                  Compile & Export PDF
+                  Export PDF
                 </button>
                 <button
                   type="button"
@@ -1967,7 +1950,7 @@ export default function App() {
                   className="px-4 py-2 text-xs font-bold bg-amber-600 hover:bg-amber-750 text-white rounded-xl transition disabled:opacity-50 cursor-pointer flex items-center gap-1.5 shadow-md"
                 >
                   <Archive className="h-3.5 w-3.5" />
-                  {isExportingZip ? "Packaging ZIP..." : "Download Full Bundle ZIP"}
+                  {isExportingZip ? "Packaging…" : "Download ZIP"}
                 </button>
               </div>
            </div>

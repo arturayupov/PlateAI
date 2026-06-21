@@ -124,8 +124,8 @@ export const InteractiveDesignerCanvas: React.FC<InteractiveDesignerCanvasProps>
     const dish = dishes.find(d => d.id === dishId);
     if (!dish) return;
     
-    const startW = isPercent ? (dish.imageWidth ?? imageScale) : (dish.imageWidth ?? 56);
-    const startH = isPercent ? (dish.imageHeight ?? imageScale) : (dish.imageHeight ?? 56);
+    const startW = isPercent ? (dish.imageWidth ?? imageScale) : (dish.imageWidth ?? 80);
+    const startH = isPercent ? (dish.imageHeight ?? imageScale) : (dish.imageHeight ?? 80);
     
     const startX = e.clientX;
     const startY = e.clientY;
@@ -1161,7 +1161,8 @@ export const InteractiveDesignerCanvas: React.FC<InteractiveDesignerCanvasProps>
 
             {/* Global Typography Sizing */}
             <div className="space-y-3 border-t border-[#CAD2CD]/40 pt-3">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 block font-extrabold">Global Font Sizing Center</span>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 block font-extrabold">Default Font Sizes</span>
+              <p className="text-[9px] text-slate-400 leading-snug">Applies to every item. To resize just one, click it on the canvas and use Text Styling.</p>
               <div className="space-y-2 bg-[#F4F7F5] border border-[#CCD7CD]/40 p-3 rounded-xl shadow-xs">
                 {/* Dish Name */}
                 <div className="flex items-center justify-between gap-2">
@@ -2157,8 +2158,8 @@ export const InteractiveDesignerCanvas: React.FC<InteractiveDesignerCanvasProps>
                                   }}
                                   className="group/img bg-stone-100 rounded border border-[#CCD7CD]/50 shrink-0 overflow-hidden relative cursor-pointer active:cursor-grabbing"
                                   style={{
-                                    width: `${dish.imageWidth ?? 56}px`,
-                                    height: `${dish.imageHeight ?? 56}px`,
+                                    width: `${dish.imageWidth ?? 80}px`,
+                                    height: `${dish.imageHeight ?? 80}px`,
                                     borderRadius: imageAspectRatio === "ellipse" ? "100%" : "4px"
                                   }}
                                 >
@@ -2178,7 +2179,7 @@ export const InteractiveDesignerCanvas: React.FC<InteractiveDesignerCanvasProps>
                                   
                                   {/* Ambient dimensions tooltip on hover */}
                                   <div className="absolute top-0.5 left-0.5 bg-black/75 text-[7px] text-white p-0.5 rounded leading-none opacity-0 group-hover/img:opacity-100 pointer-events-none font-mono">
-                                    {dish.imageWidth ?? 56}x{dish.imageHeight ?? 56}px
+                                    {dish.imageWidth ?? 80}x{dish.imageHeight ?? 80}px
                                   </div>
                                 </div>
                               )}
@@ -2211,7 +2212,7 @@ export const InteractiveDesignerCanvas: React.FC<InteractiveDesignerCanvasProps>
                                   {dish.price !== undefined && (
                                     <input
                                       type="text"
-                                      value={`${dish.currency || "$"}${dish.price}`}
+                                      value={`${({ USD: "$", EUR: "€", GBP: "£", RUB: "₽", CNY: "¥", JPY: "¥" } as Record<string, string>)[dish.currency || "USD"] || "$"}${dish.price}`}
                                       onChange={(e) => {
                                         const rawVal = e.target.value.replace(/[^0-9.]/g, "");
                                         handleUpdateDishText(dish.id, "price", parseFloat(rawVal) || 0);
@@ -2222,7 +2223,7 @@ export const InteractiveDesignerCanvas: React.FC<InteractiveDesignerCanvasProps>
                                         label: `Dish Price: "${dish.name}"`
                                       })}
                                       style={resolveElementStyles(dish.id, undefined, "price", "").style}
-                                      className={resolveElementStyles(dish.id, undefined, "price", "w-[42px] text-right font-mono font-bold text-xs bg-transparent focus:outline-none text-emerald-600 focus:border-b focus:border-stone-500 shrink-0").className}
+                                      className={resolveElementStyles(dish.id, undefined, "price", "w-[60px] text-right font-mono font-bold text-xs bg-transparent focus:outline-none text-emerald-600 focus:border-b focus:border-stone-500 shrink-0 whitespace-nowrap").className}
                                       draggable={false}
                                     />
                                   )}
