@@ -3,12 +3,38 @@ import path from "path";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
 import { createServer as createViteServer } from "vite";
+import {
+  getStripe,
+  stripeConfigured,
+  PRICE_ID,
+  APP_URL,
+  FREE_GENERATION_LIMIT,
+  signEntitlement,
+  verifyEntitlement,
+  consumeGeneration,
+  remainingGenerations,
+  putCleanImage,
+  getCleanImage,
+  applyWatermark,
+  clientIp,
+} from "./paywall";
 
-// Load environment variables
+// Load environment variables (.env.local takes priority for local dev, then .env)
+dotenv.config({ path: ".env.local" });
 dotenv.config();
 
+// Fail loudly if the API key is missing, instead of silently falling back to
+// Google Application Default Credentials (which causes confusing OAuth/reauth errors).
+if (!process.env.GEMINI_API_KEY) {
+  console.error(
+    "[Server] FATAL: GEMINI_API_KEY is not set. Create a .env.local (or .env) with GEMINI_API_KEY=... " +
+      "Get a key at https://aistudio.google.com/apikey"
+  );
+  process.exit(1);
+}
+
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 // Set up larger limits for base64 image editing transfers
 app.use(express.json({ limit: "25mb" }));
@@ -181,6 +207,18 @@ app.post("/api/image/generate", async (req, res) => {
       return res.status(400).json({ error: "Dish name is required for generation." });
     }
 
+    // Free-tier abuse protection: cap AI photo generations per IP per day.
+    const ip = clientIp(req);
+    const gate = consumeGeneration(ip);
+    if (!gate.allowed) {
+      return res.status(429).json({
+        error: `Free preview limit reached (${FREE_GENERATION_LIMIT} photos). Unlock your menu to keep going.`,
+        code: "FREE_LIMIT_REACHED",
+        remaining: 0,
+        resetAt: gate.resetAt,
+      });
+    }
+
     // Determine the style prompt based on 'Rustic/Dark', 'Bright/Modern', or 'Social Media' (top-down flatlay)
     let styleInstructions = "";
     if (style === "Rustic/Dark") {
@@ -258,12 +296,12 @@ Ensure the food looks completely cooked, delicious, realistic, glistening, and o
         firstError?.status === "RESOURCE_EXHAUSTED";
 
       try {
-        console.log("Attempting fallback to standard model: imagen-3.0-generate-002...");
-        fallbackModel = "imagen-3.0-generate-002";
+        console.log("Attempting fallback to standard model: imagen-4.0-fast-generate-001...");
+        fallbackModel = "imagen-4.0-fast-generate-001";
         usingFallback = true;
 
         const response = await ai.models.generateImages({
-          model: "imagen-3.0-generate-002",
+          model: "imagen-4.0-fast-generate-001",
           prompt: promptText,
           config: {
             numberOfImages: 1,
@@ -318,10 +356,18 @@ Ensure the food looks completely cooked, delicious, realistic, glistening, and o
       throw new Error("No image data could be retrieved from any model. Please check your text input or prompt safety.");
     }
 
-    return res.json({ 
-      imageUrl: base64Image, 
-      style, 
-      imageSize, 
+    // Keep the clean original server-side; hand the client a watermarked preview.
+    // The clean version is released only after a successful purchase (see /api/unlock).
+    const imageId = putCleanImage(base64Image);
+    const watermarked = await applyWatermark(base64Image);
+
+    return res.json({
+      imageUrl: watermarked,
+      imageId,
+      watermarked: true,
+      remaining: remainingGenerations(ip),
+      style,
+      imageSize,
       aspectRatio,
       usingFallback,
       fallbackModel
@@ -332,6 +378,89 @@ Ensure the food looks completely cooked, delicious, realistic, glistening, and o
       error: "Food photo photoshoot failed. " + (error?.message || error || ""),
     });
   }
+});
+
+// ============================ PAYWALL ENDPOINTS ============================
+
+// Create a one-time Stripe Checkout session ($19) to unlock downloads.
+app.post("/api/checkout", async (req, res) => {
+  try {
+    const stripe = getStripe();
+    if (!stripe) {
+      return res.status(503).json({ error: "Payments are not configured yet (missing STRIPE_SECRET_KEY)." });
+    }
+    const { projectId } = req.body || {};
+    const pid = (typeof projectId === "string" && projectId.trim()) ? projectId.trim() : "menu";
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: [{ price: PRICE_ID, quantity: 1 }],
+      success_url: `${APP_URL}/?paid=1&session_id={CHECKOUT_SESSION_ID}&project=${encodeURIComponent(pid)}`,
+      cancel_url: `${APP_URL}/?canceled=1`,
+      metadata: { app: "plateai", projectId: pid },
+      payment_intent_data: { metadata: { app: "plateai", projectId: pid } },
+    });
+
+    return res.json({ url: session.url, id: session.id });
+  } catch (error: any) {
+    console.error("Checkout error:", error);
+    return res.status(500).json({ error: "Failed to start checkout. " + (error?.message || "") });
+  }
+});
+
+// Confirm a completed Checkout session and issue a signed entitlement token.
+app.get("/api/payment/confirm", async (req, res) => {
+  try {
+    const stripe = getStripe();
+    if (!stripe) {
+      return res.status(503).json({ error: "Payments are not configured yet." });
+    }
+    const sessionId = (req.query.session_id || "").toString();
+    if (!sessionId) {
+      return res.status(400).json({ error: "session_id is required." });
+    }
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    if (session.payment_status !== "paid") {
+      return res.status(402).json({ error: "Payment not completed.", paid: false });
+    }
+    const projectId = (session.metadata?.projectId as string) || "menu";
+    const token = signEntitlement(projectId);
+    return res.json({ paid: true, token, projectId });
+  } catch (error: any) {
+    console.error("Confirm error:", error);
+    return res.status(500).json({ error: "Failed to confirm payment. " + (error?.message || "") });
+  }
+});
+
+// Exchange a valid entitlement token for the clean (watermark-free) originals.
+app.post("/api/unlock", async (req, res) => {
+  try {
+    const { token, projectId, imageIds } = req.body || {};
+    if (!verifyEntitlement(token, typeof projectId === "string" ? projectId : undefined)) {
+      return res.status(403).json({ error: "Invalid or expired unlock token." });
+    }
+    if (!Array.isArray(imageIds)) {
+      return res.status(400).json({ error: "imageIds array is required." });
+    }
+    const images: Record<string, string | null> = {};
+    for (const id of imageIds) {
+      if (typeof id === "string") images[id] = getCleanImage(id);
+    }
+    return res.json({ images });
+  } catch (error: any) {
+    console.error("Unlock error:", error);
+    return res.status(500).json({ error: "Failed to unlock downloads. " + (error?.message || "") });
+  }
+});
+
+// Lightweight status for the frontend to know if payments are live + free quota.
+app.get("/api/paywall/status", (req, res) => {
+  return res.json({
+    paymentsEnabled: stripeConfigured(),
+    freeLimit: FREE_GENERATION_LIMIT,
+    remaining: remainingGenerations(clientIp(req)),
+    priceUsd: 19,
+  });
 });
 
 // Endpoint: Edit existing food photo using base64 image + natural text edits
