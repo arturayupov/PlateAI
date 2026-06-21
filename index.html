@@ -3,11 +3,79 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Virtual Food Photographer</title>
+
+    <!-- Primary SEO. NOTE: update the domain below at deploy time. -->
+    <title>PlateAI — AI Menu Maker for Restaurants &amp; Cafes | Photos, Design &amp; Print PDF</title>
+    <meta name="description" content="PlateAI turns a plain-text menu into a designed, print-ready menu with AI food photography. Write gourmet descriptions, generate realistic dish photos, and export a PDF or QR-ready menu. Design free, pay $19 once to download — or self-host the open-source app." />
+    <meta name="keywords" content="restaurant menu maker, AI menu generator, menu design, AI food photography, menu maker, cafe menu maker, restaurant menu template, menu creator, print menu PDF, menu engineering" />
+    <link rel="canonical" href="https://plateai.app/" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#255437" />
+    <meta name="author" content="PlateAI" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="PlateAI" />
+    <meta property="og:title" content="PlateAI — AI Menu Maker for Restaurants &amp; Cafes" />
+    <meta property="og:description" content="Turn your menu into stunning AI food photography and a print-ready design — in minutes. Design free, pay $19 once to download, or self-host the open-source app." />
+    <meta property="og:url" content="https://plateai.app/" />
+    <meta property="og:image" content="https://plateai.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="PlateAI — AI Menu Maker for Restaurants &amp; Cafes" />
+    <meta name="twitter:description" content="Turn your menu into stunning AI food photography and a print-ready design. Design free, pay $19 once to download." />
+    <meta name="twitter:image" content="https://plateai.app/og-image.png" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Structured data: software application + one-time offer -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "PlateAI",
+      "applicationCategory": "DesignApplication",
+      "operatingSystem": "Web",
+      "description": "AI menu maker for restaurants and cafes. Generate gourmet descriptions and realistic AI food photography from a plain-text menu, then export a print-ready PDF.",
+      "url": "https://plateai.app/",
+      "offers": {
+        "@type": "Offer",
+        "price": "19.00",
+        "priceCurrency": "USD",
+        "description": "One-time payment to download a finished menu (watermark removed, high-resolution photos, print-ready PDF and ZIP)."
+      }
+    }
+    </script>
+
+    <!-- Structured data: FAQ (mirrors the on-page FAQ for rich results & AI answers) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {"@type":"Question","name":"Is PlateAI free to use?","acceptedAnswer":{"@type":"Answer","text":"Designing and previewing is free with no sign-up. You pay a one-time $19 fee only when you download your finished menu without the watermark."}},
+        {"@type":"Question","name":"What does the $19 unlock?","acceptedAnswer":{"@type":"Answer","text":"A single one-time payment (no subscription) removes the watermark and unlocks downloads: high-resolution images, a print-ready PDF menu, and the full ZIP pack."}},
+        {"@type":"Question","name":"Do I need design skills?","acceptedAnswer":{"@type":"Answer","text":"No. Paste your menu as plain text and PlateAI writes descriptions and lays it out using nine print templates and menu-engineering principles."}},
+        {"@type":"Question","name":"How are the food photos made?","acceptedAnswer":{"@type":"Answer","text":"PlateAI uses Google Gemini image models to generate realistic restaurant-grade food photography from your dish descriptions, with selectable styling looks."}},
+        {"@type":"Question","name":"Can I self-host PlateAI for free?","acceptedAnswer":{"@type":"Answer","text":"Yes. PlateAI is open source. Clone the repository, add your own Google Gemini API key, and run it yourself with no watermark and no fees."}}
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>
+
+    <!-- Crawler / AI-search fallback: concise, readable summary for engines that don't run JS. -->
+    <noscript>
+      <h1>PlateAI — AI Menu Maker for Restaurants &amp; Cafes</h1>
+      <p>PlateAI turns a plain-text menu into a professionally designed, print-ready menu with AI-generated food photography. Paste your dishes to get gourmet descriptions and realistic photos, choose from nine menu templates, and export a print-ready PDF or full ZIP pack.</p>
+      <p>Design and preview for free with no sign-up. Pay a one-time $19 to download your finished menu (watermark removed, high-resolution photos, PDF and ZIP). PlateAI is also open source and free to self-host with your own Google Gemini API key.</p>
+      <p>Best for restaurants, cafes, coffee shops, bars, bakeries and food trucks that want a beautiful menu without a designer.</p>
+    </noscript>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

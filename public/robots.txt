@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# AI search / answer engines are welcome to read and cite this site.
+User-agent: GPTBot
+Allow: /
+User-agent: OAI-SearchBot
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://plateai.app/sitemap.xml

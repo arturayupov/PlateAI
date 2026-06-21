@@ -1,6 +1,6 @@
 {
-  "name": "Virtual Food Photographer",
-  "description": "Generate high-end, realistic food photography from text-based menus with style toggles, resolution settings, and interactive prompt editing.",
+  "name": "PlateAI",
+  "description": "AI menu maker for restaurants and cafes. Turn a plain-text menu into gourmet descriptions and realistic AI food photography, then export a print-ready PDF.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
