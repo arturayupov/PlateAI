@@ -31,6 +31,15 @@ import { Dish, FoodPhotoStyle, ImageSize, AspectRatio, GenerationSettings, Brand
 import { generatePresentationPDF } from "./pdfGenerator";
 import { InteractiveDesignerCanvas } from "./components/InteractiveDesignerCanvas";
 import { PromoLandingPage } from "./components/PromoLandingPage";
+import { PaywallModal } from "./components/PaywallModal";
+import {
+  getProjectId,
+  getStoredToken,
+  setStoredToken,
+  startCheckout,
+  confirmPayment,
+  unlockImages,
+} from "./paywallClient";
 
 const getFormattedPriceWithSymbol = (dish: Dish) => {
   if (dish.price === undefined || dish.price === null || Number(dish.price) === 0) {
@@ -156,6 +165,65 @@ export default function App() {
 
   // Export PDF config settings view
   const [activeView, setActiveView] = useState<"landing" | "studio" | "designer">("landing");
+
+  // ---- Paywall: one-time $19 download unlock (no accounts) ----
+  const [paywallOpen, setPaywallOpen] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(() => !!getStoredToken());
+  const [payLoading, setPayLoading] = useState(false);
+  const [payError, setPayError] = useState("");
+  const pendingActionRef = useRef<null | (() => void)>(null);
+
+  // Swap watermarked previews for the clean originals after a successful purchase.
+  const applyUnlock = async (token: string, projectId: string) => {
+    const ids = dishesRef.current.map((d) => d.imageId).filter(Boolean) as string[];
+    if (ids.length === 0) return;
+    try {
+      const clean = await unlockImages(token, projectId, ids);
+      setDishes((prev) => {
+        const updated = prev.map((d) => (d.imageId && clean[d.imageId] ? { ...d, imageUrl: clean[d.imageId]! } : d));
+        saveToLocalStorage(updated);
+        return updated;
+      });
+    } catch (e) {
+      console.warn("unlock swap failed", e);
+    }
+  };
+
+  // Gate an action behind the paywall: run it if unlocked, else open the modal.
+  const ensureUnlocked = (action: () => void) => {
+    if (isUnlocked) { action(); return; }
+    pendingActionRef.current = action;
+    setPayError("");
+    setPaywallOpen(true);
+  };
+
+  const handlePay = async () => {
+    setPayLoading(true);
+    setPayError("");
+    try {
+      await startCheckout(); // redirects to Stripe
+    } catch (e: any) {
+      setPayError(e?.message || "Checkout failed.");
+      setPayLoading(false);
+    }
+  };
+
+  // Handle the return from Stripe Checkout (?paid=1&session_id=...).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("paid") === "1" && params.get("session_id")) {
+      (async () => {
+        const res = await confirmPayment(params.get("session_id")!);
+        if (res.paid && res.token) {
+          setStoredToken(res.token);
+          setIsUnlocked(true);
+          await applyUnlock(res.token, res.projectId || getProjectId());
+          setActiveView("designer");
+        }
+        window.history.replaceState({}, "", window.location.pathname);
+      })();
+    }
+  }, []);
   const [exportTheme, setExportTheme] = useState<"dark" | "light">("light"); // Default to light printable for Nordic Sage
   const [exportOnlyFullyGenerated, setExportOnlyFullyGenerated] = useState(false);
   const [exportPaperSize, setExportPaperSize] = useState<"a4" | "letter">("a4");
@@ -661,6 +729,7 @@ export default function App() {
             return {
               ...d,
               imageUrl: data.imageUrl,
+              imageId: data.imageId,
               isLoading: false,
               usingFallback: data.usingFallback,
               fallbackModel: data.fallbackModel,
@@ -745,6 +814,7 @@ export default function App() {
             return {
               ...d,
               imageUrl: data.imageUrl,
+              imageId: data.imageId,
               history: currentHist,
               historyIndex: currentHist.length // index of the updated image
             };
@@ -1377,7 +1447,7 @@ export default function App() {
                         </p>
                       </div>
                       <button
-                        onClick={handleDownloadAllImagesOnlyZip}
+                        onClick={() => ensureUnlocked(handleDownloadAllImagesOnlyZip)}
                         disabled={isExportingImagesZip}
                         className="text-xs font-bold px-4 py-2 rounded-xl bg-[#255437] text-white hover:opacity-90 disabled:opacity-50 transition-all duration-200 flex items-center gap-2 shadow-sm shrink-0 cursor-pointer"
                       >
@@ -1867,7 +1937,7 @@ export default function App() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={() => ensureUnlocked(() => {
                     try {
                       generatePresentationPDF(dishes, globalSettings, {
                         theme: exportTheme,
@@ -1884,7 +1954,7 @@ export default function App() {
                     } catch (error: any) {
                       alert("Failure compiling document: " + (error?.message || error));
                     }
-                  }}
+                  })}
                   className={`px-5 py-2 text-xs font-bold ${theme.buttonPrimary} rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md`}
                 >
                   <Printer className="h-3.5 w-3.5" />
@@ -1893,7 +1963,7 @@ export default function App() {
                 <button
                   type="button"
                   disabled={isExportingZip}
-                  onClick={handleDownloadProjectArchive}
+                  onClick={() => ensureUnlocked(handleDownloadProjectArchive)}
                   className="px-4 py-2 text-xs font-bold bg-amber-600 hover:bg-amber-750 text-white rounded-xl transition disabled:opacity-50 cursor-pointer flex items-center gap-1.5 shadow-md"
                 >
                   <Archive className="h-3.5 w-3.5" />
@@ -1928,7 +1998,7 @@ export default function App() {
                    setBrandStyles={setBrandStyles}
                    showPageNumbers={showPageNumbers}
                    setShowPageNumbers={setShowPageNumbers}
-                   onExportPDF={() => {
+                   onExportPDF={() => ensureUnlocked(() => {
                      try {
                        generatePresentationPDF(dishes, globalSettings, {
                          theme: exportTheme,
@@ -1945,7 +2015,7 @@ export default function App() {
                      } catch (error: any) {
                        alert("Failure compiling document: " + (error?.message || error));
                      }
-                   }}
+                   })}
                 />
              </div>
              
@@ -2129,6 +2199,15 @@ export default function App() {
           </p>
         </div>
       </footer>
+
+      <PaywallModal
+        open={paywallOpen}
+        onClose={() => setPaywallOpen(false)}
+        onPay={handlePay}
+        priceUsd={19}
+        loading={payLoading}
+        error={payError}
+      />
     </div>
   );
 }

@@ -6,6 +6,7 @@ export interface Dish {
   keyIngredients: string[];
   visualDescription: string;
   imageUrl?: string;
+  imageId?: string; // server-side id of the clean (watermark-free) original
   isLoading?: boolean;
   error?: string;
   usingFallback?: boolean;

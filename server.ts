@@ -474,6 +474,18 @@ app.post("/api/image/edit", async (req, res) => {
       return res.status(400).json({ error: "Edit prompt instruction is required." });
     }
 
+    // Same free-tier abuse protection as generation (edits also call paid models).
+    const ip = clientIp(req);
+    const gate = consumeGeneration(ip);
+    if (!gate.allowed) {
+      return res.status(429).json({
+        error: `Free preview limit reached (${FREE_GENERATION_LIMIT} photos). Unlock your menu to keep going.`,
+        code: "FREE_LIMIT_REACHED",
+        remaining: 0,
+        resetAt: gate.resetAt,
+      });
+    }
+
     // Extract raw base64 and mime type
     let mimeType = "image/png";
     let pureBase64 = base64Image;
@@ -575,7 +587,10 @@ Maintain a completely photorealistic, high-end, appetizing food presentation. No
       throw new Error("No edited image was returned. Check if the edit instructions are clear.");
     }
 
-    return res.json({ imageUrl: resultBase64 });
+    // Keep clean edited original server-side; return a watermarked preview.
+    const imageId = putCleanImage(resultBase64);
+    const watermarked = await applyWatermark(resultBase64);
+    return res.json({ imageUrl: watermarked, imageId, watermarked: true, remaining: remainingGenerations(ip) });
   } catch (error: any) {
     console.error("Error in image editing:", error);
     return res.status(500).json({
