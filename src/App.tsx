@@ -28,8 +28,7 @@ import {
 } from "lucide-react";
 import JSZip from "jszip";
 import { Dish, FoodPhotoStyle, ImageSize, AspectRatio, GenerationSettings, BrandStyles, TextStyle } from "./types";
-import { generatePresentationPDF } from "./pdfGenerator";
-import { InteractiveDesignerCanvas } from "./components/InteractiveDesignerCanvas";
+import { AiMenuDesigner } from "./components/AiMenuDesigner";
 import { PromoLandingPage } from "./components/PromoLandingPage";
 import { PaywallModal } from "./components/PaywallModal";
 import {
@@ -1896,119 +1895,37 @@ export default function App() {
       ) : (
         /* DESIGNER VIEW */
         <div className="space-y-6 animate-fade-in">
-           {/* DYNAMIC BENTO HERO CARD */}
-           <div className={`${theme.cardBg} border ${theme.cardBorder} rounded-2xl p-6 relative flex flex-col md:flex-row justify-between items-center gap-4 ${theme.glowShadow}`}>
-              <div className="space-y-1 text-center md:text-left">
-                <div className="flex items-center justify-center md:justify-start gap-2.5">
-                  <div className="h-9 w-9 rounded-xl bg-[#255437]/10 border border-[#255437]/30 flex items-center justify-center text-[#255437]">
-                    <Sliders className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h2 className={`text-base font-display font-extrabold ${theme.textPrimary}`}>
-                      Print & Presentation Studio Deck
-                    </h2>
-                    <p className={`text-[11px] font-mono uppercase tracking-wider ${theme.textMuted}`}>WYSIWYG Interactive Workspace</p>
-                  </div>
+           {/* Designer header */}
+           <div className={`${theme.cardBg} border ${theme.cardBorder} rounded-2xl px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-3 ${theme.glowShadow}`}>
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-xl bg-[#255437]/10 border border-[#255437]/30 flex items-center justify-center text-[#255437]">
+                  <Wand2 className="h-5 w-5" />
                 </div>
-                <p className={`text-xs ${theme.textSecondary} mt-2 max-w-2xl leading-relaxed`}>
-                   Arrange your menu, edit text inline, then download a print-ready PDF or the full pack.
-                </p>
+                <div>
+                  <h2 className={`text-base font-display font-extrabold ${theme.textPrimary}`}>AI Menu Designer</h2>
+                  <p className={`text-[11px] ${theme.textMuted}`}>The AI lays out your full menu — categories, columns, pages — then exports a print-ready PDF.</p>
+                </div>
               </div>
-              
-              {/* Export actions */}
-              <div className="flex flex-wrap items-center gap-2.5">
-                <span className="text-[11px] font-semibold text-[#55695A] mr-1 hidden lg:inline">Download&nbsp;→</span>
-                <button
-                  type="button"
-                  onClick={() => ensureUnlocked(() => {
-                    try {
-                      generatePresentationPDF(dishes, globalSettings, {
-                        theme: exportTheme,
-                        includeUnphotographed: !exportOnlyFullyGenerated,
-                        paperSize: exportPaperSize,
-                        orientation: exportOrientation,
-                        format: exportFormat,
-                        styleTemplate: exportStyleTemplate,
-                        restaurantName: restaurantName,
-                        restaurantTagline: restaurantTagline,
-                        showPageNumbers: showPageNumbers,
-                        brandStyles: brandStyles
-                      });
-                    } catch (error: any) {
-                      alert("Failure compiling document: " + (error?.message || error));
-                    }
-                  })}
-                  className={`px-5 py-2 text-xs font-bold ${theme.buttonPrimary} rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md`}
-                >
-                  <Printer className="h-3.5 w-3.5" />
-                  Export PDF
-                </button>
-                <button
-                  type="button"
-                  disabled={isExportingZip}
-                  onClick={() => ensureUnlocked(handleDownloadProjectArchive)}
-                  className="px-4 py-2 text-xs font-bold bg-amber-600 hover:bg-amber-750 text-white rounded-xl transition disabled:opacity-50 cursor-pointer flex items-center gap-1.5 shadow-md"
-                >
-                  <Archive className="h-3.5 w-3.5" />
-                  {isExportingZip ? "Packaging…" : "Download ZIP"}
-                </button>
-              </div>
+              <button
+                type="button"
+                disabled={isExportingZip}
+                onClick={() => ensureUnlocked(handleDownloadProjectArchive)}
+                className="px-4 py-2 text-xs font-bold bg-[#EAEFEA] hover:bg-[#DEE7DE] border border-[#BACCC0] text-[#1C2521] rounded-xl transition disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                title="Download raw images + data as a ZIP"
+              >
+                <Archive className="h-3.5 w-3.5" />
+                {isExportingZip ? "Packaging…" : "Raw pack (ZIP)"}
+              </button>
            </div>
 
-           {/* Wide 2-Column Unified Interactive Designer Workspace */}
-           <div className="space-y-4">
-             <div className={`${theme.cardBg} border ${theme.cardBorder} rounded-2xl p-5 ${theme.glowShadow}`}>
-                <InteractiveDesignerCanvas
-                   dishes={dishes}
-                   setDishes={setDishes}
-                   restaurantName={restaurantName}
-                   setRestaurantName={setRestaurantName}
-                   restaurantTagline={restaurantTagline}
-                   setRestaurantTagline={setRestaurantTagline}
-                   exportStyleTemplate={exportStyleTemplate}
-                   setExportStyleTemplate={setExportStyleTemplate}
-                   exportTheme={exportTheme}
-                   setExportTheme={setExportTheme}
-                   exportFormat={exportFormat}
-                   setExportFormat={setExportFormat}
-                   exportOrientation={exportOrientation}
-                   setExportOrientation={setExportOrientation}
-                   exportPaperSize={exportPaperSize}
-                   setExportPaperSize={setExportPaperSize}
-                   exportOnlyFullyGenerated={exportOnlyFullyGenerated}
-                   setExportOnlyFullyGenerated={setExportOnlyFullyGenerated}
-                   brandStyles={brandStyles}
-                   setBrandStyles={setBrandStyles}
-                   showPageNumbers={showPageNumbers}
-                   setShowPageNumbers={setShowPageNumbers}
-                   onExportPDF={() => ensureUnlocked(() => {
-                     try {
-                       generatePresentationPDF(dishes, globalSettings, {
-                         theme: exportTheme,
-                         includeUnphotographed: !exportOnlyFullyGenerated,
-                         paperSize: exportPaperSize,
-                         orientation: exportOrientation,
-                         format: exportFormat,
-                         styleTemplate: exportStyleTemplate,
-                         restaurantName: restaurantName,
-                         restaurantTagline: restaurantTagline,
-                         showPageNumbers: showPageNumbers,
-                         brandStyles: brandStyles
-                       });
-                     } catch (error: any) {
-                       alert("Failure compiling document: " + (error?.message || error));
-                     }
-                   })}
-                />
-             </div>
-             
-             <div className="p-4 bg-[#EAF2EB] border border-[#CFDCCE] rounded-xl flex items-start gap-2.5">
-               <Info className="h-4 w-4 text-[#255437] shrink-0 mt-0.5" />
-               <p className="text-[11px] text-[#4F5B51] leading-relaxed">
-                 <strong>Interactive Canvas Workspace:</strong> All configuration controls (Presets, Layout Format, Canvas Spacing, Brand Overrides, and sequence checklist) are unified on the Left Workspace Side-Panel for ultimate comfort and grandmas-friendly clarity. Feel free to drag and drop elements on the Canvas, click directly on text to rewrite, and click re-size options instantly.
-               </p>
-             </div>
-           </div>
+           <AiMenuDesigner
+             dishes={dishes}
+             restaurantName={restaurantName}
+             setRestaurantName={setRestaurantName}
+             restaurantTagline={restaurantTagline}
+             setRestaurantTagline={setRestaurantTagline}
+             ensureUnlocked={ensureUnlocked}
+           />
 
          </div>
       )}

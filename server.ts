@@ -18,6 +18,7 @@ import {
   applyWatermark,
   clientIp,
 } from "./paywall";
+import { generateLayout, renderPdf, LayoutDish } from "./menuLayout";
 
 // Load environment variables (.env.local takes priority for local dev, then .env)
 dotenv.config({ path: ".env.local" });
@@ -461,6 +462,52 @@ app.get("/api/paywall/status", (req, res) => {
     remaining: remainingGenerations(clientIp(req)),
     priceUsd: 19,
   });
+});
+
+// ====================== AI MENU LAYOUT ENGINE ======================
+
+// Generate (or revise) a complete print-ready HTML menu from the dishes.
+app.post("/api/menu/layout", async (req, res) => {
+  try {
+    const { dishes, restaurantName, restaurantTagline, style, paper, withPhotos, instruction, currentHtml } = req.body || {};
+    if ((!Array.isArray(dishes) || dishes.length === 0) && !currentHtml) {
+      return res.status(400).json({ error: "Dishes are required to design a menu." });
+    }
+    const html = await generateLayout(ai, {
+      restaurantName: restaurantName || "Our Menu",
+      restaurantTagline,
+      dishes: (dishes || []) as LayoutDish[],
+      style,
+      paper: paper === "letter" ? "letter" : "a4",
+      withPhotos: !!withPhotos,
+      instruction,
+      currentHtml,
+    });
+    return res.json({ html });
+  } catch (error: any) {
+    console.error("Layout error:", error);
+    return res.status(500).json({ error: "Failed to design the menu. " + (error?.message || "") });
+  }
+});
+
+// Render the menu HTML to a print-ready PDF. Gated by a paid entitlement token.
+app.post("/api/menu/pdf", async (req, res) => {
+  try {
+    const { html, paper, token, projectId } = req.body || {};
+    if (!html || typeof html !== "string") {
+      return res.status(400).json({ error: "Menu HTML is required." });
+    }
+    if (!verifyEntitlement(token, typeof projectId === "string" ? projectId : undefined)) {
+      return res.status(403).json({ error: "Unlock your menu to download the PDF." });
+    }
+    const pdf = await renderPdf(html, paper === "letter" ? "letter" : "a4");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", 'attachment; filename="plateai-menu.pdf"');
+    return res.end(pdf);
+  } catch (error: any) {
+    console.error("PDF error:", error);
+    return res.status(500).json({ error: "Failed to export PDF. " + (error?.message || "") });
+  }
 });
 
 // Endpoint: Edit existing food photo using base64 image + natural text edits

@@ -21,6 +21,7 @@
     "jszip": "^3.10.1",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
+    "puppeteer": "^25.1.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "stripe": "^22.2.2",
