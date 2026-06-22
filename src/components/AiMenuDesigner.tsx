@@ -17,6 +17,10 @@ interface PageUI {
   subtitle: string;
   categories: string[];
   withPhotos: boolean;
+  genCover?: boolean;       // cover: generate an AI background image
+  coverPrompt?: string;     // cover: prompt for the background image
+  coverImageUrl?: string;   // generated background (watermarked preview)
+  coverImageId?: string;    // server-side id for the clean original
 }
 
 interface AiMenuDesignerProps {
@@ -88,13 +92,31 @@ export const AiMenuDesigner: React.FC<AiMenuDesignerProps> = ({
         })),
         restaurantName, restaurantTagline, style, paper, withPhotos,
       };
+      let workingPages = pages;
       if (mode === "custom" && pages.length > 0) {
-        body.pages = pages.map((pg) =>
+        // Generate any requested AI cover backgrounds first (watermarked preview + id for clean swap).
+        workingPages = await Promise.all(
+          pages.map(async (pg) => {
+            if (pg.kind === "cover" && pg.genCover && (pg.coverPrompt || "").trim() && !pg.coverImageUrl) {
+              try {
+                const ir = await fetch("/api/image/generate", {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ name: pg.title || restaurantName || "Cover", visualDescription: pg.coverPrompt, style: "Rustic/Dark", imageSize: "1K", aspectRatio: "3:4" }),
+                });
+                const idata = await ir.json();
+                if (ir.ok && idata.imageUrl) return { ...pg, coverImageUrl: idata.imageUrl, coverImageId: idata.imageId };
+              } catch {}
+            }
+            return pg;
+          })
+        );
+        setPages(workingPages);
+        body.pages = workingPages.map((pg, idx) =>
           pg.kind === "cover"
-            ? { kind: "cover", title: pg.title || restaurantName, subtitle: pg.subtitle || restaurantTagline }
+            ? { kind: "cover", title: pg.title || restaurantName, subtitle: pg.subtitle || restaurantTagline, ...(pg.coverImageUrl ? { coverImage: `{{COVER_${idx}}}` } : {}) }
             : { kind: "content", categories: pg.categories, withPhotos: pg.withPhotos }
         );
-        body.withPhotos = pages.some((p) => p.withPhotos) || withPhotos;
+        body.withPhotos = workingPages.some((p) => p.withPhotos) || withPhotos;
       }
       if (revise && instruction.trim() && html) { body.instruction = instruction.trim(); body.currentHtml = html; }
 
@@ -116,7 +138,7 @@ export const AiMenuDesigner: React.FC<AiMenuDesignerProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const previewHtml = html ? substitute(html, (i) => dishes[i]?.imageUrl, () => undefined) : "";
+  const previewHtml = html ? substitute(html, (i) => dishes[i]?.imageUrl, (i) => pages[i]?.coverImageUrl) : "";
 
   const doExportPdf = () => {
     ensureUnlocked(async () => {
@@ -124,11 +146,16 @@ export const AiMenuDesigner: React.FC<AiMenuDesignerProps> = ({
       setExporting(true);
       try {
         let finalHtml = html;
-        if (/\{\{IMG_\d+\}\}/.test(html)) {
-          const ids = dishes.map((d) => d.imageId).filter(Boolean) as string[];
+        if (/\{\{(IMG|COVER)_\d+\}\}/.test(html)) {
+          const dishIds = dishes.map((d) => d.imageId).filter(Boolean) as string[];
+          const coverIds = pages.map((p) => p.coverImageId).filter(Boolean) as string[];
           let clean: Record<string, string | null> = {};
-          try { clean = await unlockImages(getStoredToken() || "", getProjectId(), ids); } catch {}
-          finalHtml = substitute(html, (i) => { const d = dishes[i]; return (d?.imageId && clean[d.imageId]) || d?.imageUrl; }, () => undefined);
+          try { clean = await unlockImages(getStoredToken() || "", getProjectId(), [...dishIds, ...coverIds]); } catch {}
+          finalHtml = substitute(
+            html,
+            (i) => { const d = dishes[i]; return (d?.imageId && clean[d.imageId]) || d?.imageUrl; },
+            (i) => { const pg = pages[i]; return (pg?.coverImageId && clean[pg.coverImageId]) || pg?.coverImageUrl; }
+          );
         }
         const r = await fetch("/api/menu/pdf", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ html: finalHtml, paper, token: getStoredToken(), projectId: getProjectId() }) });
         if (!r.ok) { const err = await r.json().catch(() => ({})); throw new Error(err.error || "PDF export failed."); }
@@ -204,6 +231,15 @@ export const AiMenuDesigner: React.FC<AiMenuDesignerProps> = ({
                     <div className="space-y-1.5">
                       <input value={pg.title} onChange={(e) => updatePage(pg.id, { title: e.target.value })} placeholder="Cover title" className="w-full text-xs bg-white border border-[#CAD2CD] rounded px-2 py-1.5 focus:outline-none focus:border-[#255437]" />
                       <input value={pg.subtitle} onChange={(e) => updatePage(pg.id, { subtitle: e.target.value })} placeholder="Cover subtitle" className="w-full text-xs bg-white border border-[#CAD2CD] rounded px-2 py-1.5 focus:outline-none focus:border-[#255437]" />
+                      <label className="flex items-center gap-2 text-[11px] text-[#1C2C1D] cursor-pointer font-semibold pt-0.5">
+                        <input type="checkbox" checked={!!pg.genCover} onChange={(e) => updatePage(pg.id, { genCover: e.target.checked, ...(e.target.checked ? {} : { coverImageUrl: undefined, coverImageId: undefined }) })} className="accent-[#255437]" />
+                        <ImageIcon className="h-3 w-3" /> AI background image
+                      </label>
+                      {pg.genCover && (
+                        <textarea value={pg.coverPrompt || ""} onChange={(e) => updatePage(pg.id, { coverPrompt: e.target.value, coverImageUrl: undefined, coverImageId: undefined })} rows={2}
+                          placeholder="e.g. moody dark wooden table with soft candlelight, top-down"
+                          className="w-full text-[11px] bg-white border border-[#CAD2CD] rounded px-2 py-1.5 focus:outline-none focus:border-[#255437] resize-none" />
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-1.5">
