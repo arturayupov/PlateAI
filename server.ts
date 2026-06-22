@@ -469,7 +469,7 @@ app.get("/api/paywall/status", (req, res) => {
 // Generate (or revise) a complete print-ready HTML menu from the dishes.
 app.post("/api/menu/layout", async (req, res) => {
   try {
-    const { dishes, restaurantName, restaurantTagline, style, paper, withPhotos, instruction, currentHtml } = req.body || {};
+    const { dishes, restaurantName, restaurantTagline, style, paper, withPhotos, pages, instruction, currentHtml } = req.body || {};
     if ((!Array.isArray(dishes) || dishes.length === 0) && !currentHtml) {
       return res.status(400).json({ error: "Dishes are required to design a menu." });
     }
@@ -480,6 +480,7 @@ app.post("/api/menu/layout", async (req, res) => {
       style,
       paper: paper === "letter" ? "letter" : "a4",
       withPhotos: !!withPhotos,
+      pages: Array.isArray(pages) ? pages : undefined,
       instruction,
       currentHtml,
     });

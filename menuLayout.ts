@@ -14,6 +14,15 @@ export interface LayoutDish {
   imageUrl?: string;
 }
 
+export interface PageSpec {
+  kind: "cover" | "content";
+  title?: string;
+  subtitle?: string;
+  categories?: string[];   // content pages: which categories appear
+  withPhotos?: boolean;
+  coverImage?: string;     // placeholder string for a cover background image (e.g. "{{COVER_0}}")
+}
+
 export interface LayoutOptions {
   restaurantName: string;
   restaurantTagline?: string;
@@ -21,6 +30,7 @@ export interface LayoutOptions {
   style?: string;       // e.g. "Classic Bistro", "Swiss Minimalist"
   paper?: "a4" | "letter";
   withPhotos?: boolean;
+  pages?: PageSpec[];   // optional explicit page composition
   instruction?: string; // a revision request from the user
   currentHtml?: string; // existing HTML to revise
 }
@@ -51,6 +61,7 @@ function stripFences(s: string): string {
 export function buildLayoutPrompt(opts: LayoutOptions): string {
   const paper = opts.paper === "letter" ? "US Letter" : "A4";
   const style = resolveStyle(opts.style);
+  const includePhotos = opts.withPhotos || (opts.pages?.some((p) => p.withPhotos) ?? false);
   // IMPORTANT: never embed base64 image data in the prompt (it blows the token limit).
   // Photos are referenced as lightweight placeholders and substituted on the client.
   const dishesJson = JSON.stringify(
@@ -60,11 +71,52 @@ export function buildLayoutPrompt(opts: LayoutOptions): string {
       description: d.description || "",
       price: d.price,
       currency: d.currency || "USD",
-      ...(opts.withPhotos && d.imageUrl ? { photo: `{{IMG_${i}}}` } : {}),
+      ...(includePhotos && d.imageUrl ? { photo: `{{IMG_${i}}}` } : {}),
     })),
     null,
     0
   );
+
+  // ---- Multi-page composition ----
+  if (opts.pages && opts.pages.length > 0) {
+    const pagesDesc = opts.pages
+      .map((pg, idx) => {
+        if (pg.kind === "cover") {
+          return `PAGE ${idx + 1} = COVER PAGE. A full-page cover. Title (display): "${pg.title || opts.restaurantName}". Subtitle: "${pg.subtitle || opts.restaurantTagline || ""}". ${
+            pg.coverImage
+              ? `Use ${pg.coverImage} as a FULL-BLEED background image covering the whole page, with a tasteful dark gradient overlay so the title stays readable in light type.`
+              : `Design an elegant cover background appropriate to the STYLE (color, subtle motif), no photo.`
+          } The cover must fill the entire page on its own.`;
+        }
+        const cats = pg.categories && pg.categories.length ? pg.categories.join(", ") : "all categories not shown on other pages";
+        return `PAGE ${idx + 1} = CONTENT PAGE. Include ONLY these categories: ${cats}. ${
+          pg.withPhotos ? "Include each dish photo using its {{IMG_n}} placeholder as <img src>." : "Text only — do not include dish photos."
+        } Use a dense, elegant two-column layout for the items.`;
+      })
+      .join("\n");
+
+    return `You are a senior print menu designer. Produce a COMPLETE, self-contained, print-ready, MULTI-PAGE HTML document.
+
+RESTAURANT: ${opts.restaurantName}${opts.restaurantTagline ? " — " + opts.restaurantTagline : ""}
+STYLE: ${style}
+PAPER: ${paper} portrait.
+
+PAGE PLAN (render the pages in EXACTLY this order, each as its own printed page):
+${pagesDesc}
+
+DISHES (JSON, assign each to the page whose category list includes it):
+${dishesJson}
+
+HARD REQUIREMENTS:
+- Output ONLY raw HTML (start with <!doctype html>). No markdown, no code fences, no commentary.
+- Embed ALL CSS in a <style> tag. Google Fonts via <link> allowed.
+- @page { size: ${paper}; margin: 0; }. Give each PAGE its own container sized to the full page (e.g. width:100%, min-height:100vh, with inner padding ~14mm) and force a hard page break between pages (page-break-after: always; break-after: page) — except after the last page.
+- Each category header is elegant; items show name + price (dotted leader) + small muted description. Dense two-column item lists on content pages.
+- Use the {{IMG_n}} and {{COVER_n}} placeholder strings VERBATIM as image src / background-image url — never alter them.
+- Item-name ~10-11pt, description ~8-9pt, category headers ~12-13pt.
+- Output ONLY the restaurant's menu. Do NOT add disclaimers, allergen/foodborne warnings, footnotes, page numbers, legal notes, or any system/technical text.
+- Cohesive, premium, restaurant-grade aesthetic matching the STYLE.`;
+  }
 
   if (opts.instruction && opts.currentHtml) {
     return `You are a senior print menu designer. Revise the following print-ready HTML menu according to the user's instruction.
