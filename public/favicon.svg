@@ -1,1 +1,10 @@
-²ø/‰ì£
+<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="7" fill="#255437"/>
+  <g transform="translate(4,4)" fill="none" stroke="#EAF2EB" stroke-width="2" stroke-linecap="round">
+    <path d="M3 16h18"/>
+    <path d="M6 19c3 1.5 9 1.5 12 0" opacity="0.8"/>
+    <path d="M5 16a7 7 0 0 1 14 0"/>
+    <circle cx="12" cy="8" r="1.5" fill="#EAF2EB" stroke="none"/>
+    <path d="M12 3v2M9.5 4.5l1 1M14.5 4.5l-1 1" opacity="0.9"/>
+  </g>
+</svg>
