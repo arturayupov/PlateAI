@@ -51,14 +51,16 @@ function stripFences(s: string): string {
 export function buildLayoutPrompt(opts: LayoutOptions): string {
   const paper = opts.paper === "letter" ? "US Letter" : "A4";
   const style = resolveStyle(opts.style);
+  // IMPORTANT: never embed base64 image data in the prompt (it blows the token limit).
+  // Photos are referenced as lightweight placeholders and substituted on the client.
   const dishesJson = JSON.stringify(
-    opts.dishes.map((d) => ({
+    opts.dishes.map((d, i) => ({
       name: d.name,
       category: d.category || "Menu",
       description: d.description || "",
       price: d.price,
       currency: d.currency || "USD",
-      ...(opts.withPhotos && d.imageUrl ? { imageUrl: d.imageUrl } : {}),
+      ...(opts.withPhotos && d.imageUrl ? { photo: `{{IMG_${i}}}` } : {}),
     })),
     null,
     0
@@ -69,7 +71,7 @@ export function buildLayoutPrompt(opts: LayoutOptions): string {
 
 USER INSTRUCTION: "${opts.instruction}"
 
-Keep it a COMPLETE, self-contained, print-ready HTML document (start with <!doctype html>, all CSS embedded). Output ONLY raw HTML — no markdown, no code fences, no commentary. Preserve overall quality, density, and print-correctness (@page ${paper}). Do not lose menu items unless explicitly told to.
+Keep it a COMPLETE, self-contained, print-ready HTML document (start with <!doctype html>, all CSS embedded). Output ONLY raw HTML — no markdown, no code fences, no commentary. Preserve overall quality, density, and print-correctness (@page ${paper}). Do not lose menu items unless explicitly told to. Do NOT add disclaimers, allergen/foodborne warnings, footnotes, or any system/technical text. Preserve any {{IMG_n}} image placeholders exactly.
 
 CURRENT HTML:
 ${opts.currentHtml}`;
@@ -92,14 +94,18 @@ HARD REQUIREMENTS:
 - Each item: name (bold) and price right-aligned with a dotted leader between them; description in smaller muted text below. Omit ingredients for density unless they are short.
 - First-page header: restaurant name (display serif/appropriate to style) + tagline, elegant and subtle.
 - Typography sized for PRINT: item names ~10-11pt, descriptions ~8-9pt, category headers ~12-13pt. Compact, not oversized.
-${opts.withPhotos ? "- Include small, tasteful dish photos from imageUrl where provided (rounded thumbnails), without breaking density." : "- This is a text-forward classic menu; do not invent images."}
+${opts.withPhotos ? "- For items that have a `photo` field, render it as a small rounded thumbnail: <img src=\"<the exact photo value>\" alt=\"\">. Use the placeholder string verbatim as the src. Do not break density." : "- This is a text-forward classic menu; do not invent images."}
+- Output ONLY the restaurant's menu. Do NOT add disclaimers, allergen or foodborne-illness warnings (e.g. "consuming raw or undercooked..."), footnotes, page numbers, legal notes, or ANY system/technical text that the restaurant did not provide.
 - Cohesive, premium, restaurant-grade aesthetic matching the STYLE.`;
 }
 
 export async function generateLayout(ai: GoogleGenAI, opts: LayoutOptions): Promise<string> {
   const prompt = buildLayoutPrompt(opts);
   const res = await ai.models.generateContent({ model: "gemini-3.5-flash", contents: prompt });
-  const html = stripFences(res.text || "");
+  let html = stripFences(res.text || "");
+  // Drop any trailing commentary the model may add after the document.
+  const endIdx = html.toLowerCase().lastIndexOf("</html>");
+  if (endIdx !== -1) html = html.slice(0, endIdx + "</html>".length);
   if (!html || !/<html|<!doctype/i.test(html)) {
     throw new Error("The designer did not return a valid HTML layout.");
   }

@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Sparkles, Loader2, RefreshCw, Printer, Wand2, Image as ImageIcon, FileText } from "lucide-react";
 import { Dish } from "../types";
-import { getStoredToken, getProjectId } from "../paywallClient";
+import { getStoredToken, getProjectId, unlockImages } from "../paywallClient";
+
+// Replace {{IMG_n}} placeholders in the generated HTML with actual image URLs.
+function substituteImages(raw: string, urlFor: (i: number) => string | undefined): string {
+  return raw.replace(/\{\{IMG_(\d+)\}\}/g, (_m, i) => urlFor(Number(i)) || "");
+}
 
 interface AiMenuDesignerProps {
   dishes: Dish[];
@@ -98,10 +103,21 @@ export const AiMenuDesigner: React.FC<AiMenuDesignerProps> = ({
       if (!html) return;
       setExporting(true);
       try {
+        // Swap watermarked previews for clean originals (the user has paid).
+        let finalHtml = html;
+        if (/\{\{IMG_\d+\}\}/.test(html)) {
+          const ids = dishes.map((d) => d.imageId).filter(Boolean) as string[];
+          let clean: Record<string, string | null> = {};
+          try { clean = await unlockImages(getStoredToken() || "", getProjectId(), ids); } catch {}
+          finalHtml = substituteImages(html, (i) => {
+            const d = dishes[i];
+            return (d?.imageId && clean[d.imageId]) || d?.imageUrl;
+          });
+        }
         const r = await fetch("/api/menu/pdf", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ html, paper, token: getStoredToken(), projectId: getProjectId() }),
+          body: JSON.stringify({ html: finalHtml, paper, token: getStoredToken(), projectId: getProjectId() }),
         });
         if (!r.ok) {
           const err = await r.json().catch(() => ({}));
@@ -232,7 +248,7 @@ export const AiMenuDesigner: React.FC<AiMenuDesignerProps> = ({
                 <p className="text-xs font-semibold">Designing your menu…</p>
               </div>
             ) : html ? (
-              <iframe title="Menu preview" srcDoc={html} className="w-full" style={{ height: 1050, border: "none", background: "white" }} />
+              <iframe title="Menu preview" srcDoc={substituteImages(html, (i) => dishes[i]?.imageUrl)} className="w-full" style={{ height: 1050, border: "none", background: "white" }} />
             ) : (
               <div className="h-[700px] flex flex-col items-center justify-center text-[#819084] gap-2">
                 <Wand2 className="h-7 w-7" />
